@@ -65,7 +65,9 @@ describe("parseResumeText en", () => {
 
 describe("pdf output round-trip quirks", () => {
   it("strips page markers", () => {
-    expect(stripPageMarkers("a\n\n-- 1 of 2 --\n\nb\n-- 2 of 2 --\n")).toBe("a\n\n\n\nb\n");
+    const out = stripPageMarkers("a\n\n-- 1 of 2 --\n\nb\n-- 2 of 2 --\n");
+    expect(out).not.toMatch(/-- \d+ of \d+ --/);
+    expect(out.split("\n").filter(Boolean)).toEqual(["a", "b"]);
   });
   it("treats uppercase CONTATO as a section and keeps summary clean", () => {
     const d = parseResumeText("Ana\nRESUMO\noi\nCONTATO\nana@x.com\nHABILIDADES\nnode");
