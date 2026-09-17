@@ -1,6 +1,6 @@
 import type { Certification, Education, Experience, Resume } from "@/src/types/resume";
 
-type SectionKey = "summary" | "experience" | "education" | "certifications" | "skills" | "languages" | "other";
+type SectionKey = "summary" | "experience" | "education" | "certifications" | "skills" | "languages" | "contact" | "other";
 
 const SECTION_TITLES: Record<SectionKey, RegExp> = {
   summary: /^(resumo|sumário|perfil|sobre( mim)?|objetivo|summary|profile|about( me)?|objective|professional summary)$/i,
@@ -9,6 +9,7 @@ const SECTION_TITLES: Record<SectionKey, RegExp> = {
   certifications: /^(certificações|certificados|cursos( e certificações)?|certifications?|courses|licenses( & certifications)?)$/i,
   skills: /^(habilidades|competências|skills|technical skills|tecnologias|technologies|stack|ferramentas|tools|hard skills)$/i,
   languages: /^(idiomas|línguas|languages)$/i,
+  contact: /^(contato|contatos|contact|contact info(rmation)?|informações de contato|dados pessoais|personal (info|details))$/i,
   other: /$^/,
 };
 

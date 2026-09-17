@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import { parseResumeText, DATE_RANGE } from "@/src/import/heuristics";
+import { stripPageMarkers } from "@/src/import/extractText";
 
 const pt = fs.readFileSync(new URL("./fixtures/resume-pt.txt", import.meta.url), "utf8");
 const en = fs.readFileSync(new URL("./fixtures/resume-en.txt", import.meta.url), "utf8");
@@ -59,5 +60,17 @@ describe("parseResumeText en", () => {
   it("extracts education and skills split by semicolon", () => {
     expect(d.education![0]).toMatchObject({ institution: "MIT", degree: "BSc Computer Science" });
     expect(d.skills).toEqual(["Go", "Node.js", "Kubernetes", "PostgreSQL"]);
+  });
+});
+
+describe("pdf output round-trip quirks", () => {
+  it("strips page markers", () => {
+    expect(stripPageMarkers("a\n\n-- 1 of 2 --\n\nb\n-- 2 of 2 --\n")).toBe("a\n\n\n\nb\n");
+  });
+  it("treats uppercase CONTATO as a section and keeps summary clean", () => {
+    const d = parseResumeText("Ana\nRESUMO\noi\nCONTATO\nana@x.com\nHABILIDADES\nnode");
+    expect(d.summary).toBe("oi");
+    expect(d.skills).toEqual(["node"]);
+    expect(d.contact!.email).toBe("ana@x.com");
   });
 });
