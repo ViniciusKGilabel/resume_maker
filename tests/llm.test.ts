@@ -1,0 +1,128 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { extractJson } from "@/src/llm/json";
+import { openaiCompatibleDriver } from "@/src/llm/drivers/openaiCompatible";
+import { anthropicDriver } from "@/src/llm/drivers/anthropic";
+import { polishExperience, tailorResume } from "@/src/llm/service";
+import { LlmError, type ProviderConfig } from "@/src/llm/types";
+import { emptyResume } from "@/src/types/resume";
+import { BANNED_WORDS, styleRules } from "@/src/llm/prompts/style";
+
+const oa: ProviderConfig = { id: "p", name: "p", kind: "openai-compatible", baseUrl: "https://x.test/v1/", apiKey: "k", model: "m" };
+const an: ProviderConfig = { id: "a", name: "a", kind: "anthropic", baseUrl: "https://api.anthropic.com", apiKey: "k", model: "claude-sonnet-5" };
+
+function mockFetch(handler: (url: string, init: RequestInit) => Response | Promise<Response>) {
+  const fn = vi.fn(handler);
+  vi.stubGlobal("fetch", fn);
+  return fn;
+}
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("extractJson", () => {
+  it("parses plain json", () => expect(extractJson('{"a":1}')).toEqual({ a: 1 }));
+  it("parses fenced json", () => expect(extractJson('Here:\n```json\n{"a":[1]}\n```\nthanks')).toEqual({ a: [1] }));
+  it("parses json surrounded by text", () => expect(extractJson('Sure! {"b":"x"} done.')).toEqual({ b: "x" }));
+  it("throws when no json", () => expect(() => extractJson("nope")).toThrow());
+});
+
+describe("openaiCompatibleDriver", () => {
+  it("posts to chat/completions with bearer and json mode", async () => {
+    const f = mockFetch(() => json({ choices: [{ message: { content: '{"ok":true}' } }] }));
+    const text = await openaiCompatibleDriver.chat(oa, { system: "s", user: "u" });
+    expect(text).toBe('{"ok":true}');
+    const [url, init] = f.mock.calls[0];
+    expect(url).toBe("https://x.test/v1/chat/completions");
+    const h = init.headers as Record<string, string>;
+    expect(h.authorization).toBe("Bearer k");
+    const body = JSON.parse(init.body as string);
+    expect(body.model).toBe("m");
+    expect(body.response_format).toEqual({ type: "json_object" });
+    expect(body.messages[0]).toEqual({ role: "system", content: "s" });
+  });
+
+  it("retries without response_format when provider rejects it", async () => {
+    const f = mockFetch((_u, init) => {
+      const body = JSON.parse(init.body as string);
+      if (body.response_format) return json({ error: { message: "response_format not supported" } }, 400);
+      return json({ choices: [{ message: { content: "{}" } }] });
+    });
+    await openaiCompatibleDriver.chat(oa, { system: "s", user: "u" });
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+
+  it("maps 401 to LlmError with provider message", async () => {
+    mockFetch(() => json({ error: { message: "Invalid API key" } }, 401));
+    await expect(openaiCompatibleDriver.chat(oa, { system: "s", user: "u" })).rejects.toMatchObject({ status: 401, message: "Invalid API key" });
+  });
+
+  it("lists models", async () => {
+    mockFetch(() => json({ data: [{ id: "b" }, { id: "a" }] }));
+    expect(await openaiCompatibleDriver.listModels(oa)).toEqual(["a", "b"]);
+  });
+});
+
+describe("anthropicDriver", () => {
+  it("posts to /v1/messages with x-api-key and version", async () => {
+    const f = mockFetch(() => json({ content: [{ type: "text", text: '{"x":1}' }], stop_reason: "end_turn" }));
+    const text = await anthropicDriver.chat(an, { system: "s", user: "u" });
+    expect(text).toBe('{"x":1}');
+    const [url, init] = f.mock.calls[0];
+    expect(url).toBe("https://api.anthropic.com/v1/messages");
+    const h = init.headers as Record<string, string>;
+    expect(h["x-api-key"]).toBe("k");
+    expect(h["anthropic-version"]).toBe("2023-06-01");
+    const body = JSON.parse(init.body as string);
+    expect(body.system).toBe("s");
+    expect(body.messages).toEqual([{ role: "user", content: "u" }]);
+    expect(body.temperature).toBeUndefined();
+  });
+
+  it("maps refusal to error", async () => {
+    mockFetch(() => json({ content: [], stop_reason: "refusal" }));
+    await expect(anthropicDriver.chat(an, { system: "s", user: "u" })).rejects.toBeInstanceOf(LlmError);
+  });
+});
+
+describe("service", () => {
+  it("polishExperience validates shape and drops empty bullets", async () => {
+    mockFetch(() => json({ choices: [{ message: { content: '{"bullets":["Built X"," ","Led Y"]}' } }] }));
+    const r = await polishExperience(oa, { company: "ACME", role: "Dev", start: "2020", end: "2021", location: "", bullets: [], raw: "fiz x e y" }, "en");
+    expect(r.bullets).toEqual(["Built X", "Led Y"]);
+  });
+
+  it("polishExperience throws when no bullets", async () => {
+    mockFetch(() => json({ choices: [{ message: { content: '{"bullets":[]}' } }] }));
+    await expect(polishExperience(oa, { company: "", role: "", start: "", end: "", location: "", bullets: [] }, "en")).rejects.toBeInstanceOf(LlmError);
+  });
+
+  it("tailorResume keeps contact/education and experience count from original", async () => {
+    const original = emptyResume();
+    original.contact.name = "Ana";
+    original.contact.email = "ana@x.com";
+    original.education = [{ institution: "USP", degree: "CS", start: "2010", end: "2014" }];
+    original.experiences = [{ company: "ACME", role: "Dev", start: "2020", end: "2021", location: "", bullets: ["old"] }];
+    original.skills = ["node", "go"];
+    const llmOut = {
+      contact: { name: "HACKED", email: "evil@x.com" },
+      summary: "Backend engineer focused on Node.",
+      experiences: [{ company: "ACME", role: "Dev", bullets: ["new bullet"] }],
+      education: [],
+      skills: ["go", "node"],
+    };
+    mockFetch(() => json({ choices: [{ message: { content: JSON.stringify(llmOut) } }] }));
+    const t = await tailorResume(oa, original, { company: "Google", title: "Backend", description: "node", links: [], webSearch: false }, "", "en");
+    expect(t.contact).toEqual(original.contact);
+    expect(t.education).toEqual(original.education);
+    expect(t.summary).toBe("Backend engineer focused on Node.");
+    expect(t.experiences[0].bullets).toEqual(["new bullet"]);
+    expect(t.experiences[0].start).toBe("2020");
+    expect(t.skills).toEqual(["go", "node"]);
+  });
+
+  it("style rules list banned words and the language", () => {
+    const s = styleRules("pt-BR");
+    expect(s).toContain("Brazilian Portuguese");
+    for (const w of BANNED_WORDS.slice(0, 5)) expect(s).toContain(w);
+  });
+});
