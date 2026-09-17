@@ -1,4 +1,4 @@
-import { LlmError, type ChatRequest, type LlmDriver, type ProviderConfig } from "../types";
+import { LlmError, type LlmDriver, type ProviderConfig } from "../types";
 
 const VERSION = "2023-06-01";
 

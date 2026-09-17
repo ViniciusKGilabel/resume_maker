@@ -38,6 +38,7 @@ export function labels(language: ResumeLanguage): Labels {
 }
 
 export function period(start: string, end: string, l: Labels): string {
+  if (!start.trim() && !end.trim()) return "";
   const e = end.trim() || l.present;
   return [start.trim(), e].filter(Boolean).join(" – ");
 }

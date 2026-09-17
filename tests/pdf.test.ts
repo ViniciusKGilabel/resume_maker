@@ -2,6 +2,14 @@ import { describe, it, expect } from "vitest";
 import { renderResumePdf } from "@/src/pdf/render";
 import { extractPdfText } from "@/src/import/extractText";
 import { emptyResume, type Resume } from "@/src/types/resume";
+import { labels, period } from "@/src/pdf/labels";
+
+describe("period", () => {
+  const l = labels("pt-BR");
+  it("omits period when there are no dates", () => expect(period("", "", l)).toBe(""));
+  it("uses present label when end is empty", () => expect(period("2020", "", l)).toBe("2020 – Atual"));
+  it("joins start and end", () => expect(period("2018", "2020", l)).toBe("2018 – 2020"));
+});
 
 function sample(): Resume {
   const r = emptyResume();
