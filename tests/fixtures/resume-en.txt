@@ -1,0 +1,25 @@
+John Doe
+john@doe.dev
++1 415 555 0134
+https://www.linkedin.com/in/johndoe
+
+Summary
+Backend engineer focused on Go and Node.
+
+Experience
+Acme Corp
+Senior Software Engineer
+2019 - Present
+- Built the billing platform in Go
+- Mentored 4 engineers
+Globex | Software Engineer | Remote
+Jun 2016 – May 2019
+- Shipped a Node.js API gateway
+
+Education
+MIT
+BSc Computer Science
+2012 - 2016
+
+Skills
+Go; Node.js; Kubernetes; PostgreSQL

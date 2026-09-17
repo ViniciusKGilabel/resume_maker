@@ -1,0 +1,30 @@
+Ana Souza
+Desenvolvedora Backend
+ana.souza@email.com | (11) 98765-4321 | linkedin.com/in/anasouza | github.com/anasouza
+
+Resumo
+Desenvolvedora com 6 anos em Node.js e sistemas distribuídos.
+
+Experiência Profissional
+Desenvolvedora Backend Sênior | Nubank | São Paulo, SP
+jan 2021 - atual
+- Desenvolvi APIs em Node.js para o time de pagamentos
+- Reduzi latência do serviço de cobrança em 40%
+Desenvolvedora Backend | iFood
+mar 2018 - dez 2020
+- Manutenção de microsserviços em TypeScript
+• Migração de banco MySQL para PostgreSQL
+
+Formação Acadêmica
+Universidade de São Paulo
+Bacharelado em Ciência da Computação
+2013 - 2017
+
+Certificações
+- AWS Certified Developer, Amazon, 2022
+
+Habilidades
+Node.js, TypeScript, PostgreSQL, Docker, AWS
+
+Idiomas
+Português (nativo), Inglês (avançado)
