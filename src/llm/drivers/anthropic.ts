@@ -46,6 +46,6 @@ export const anthropicDriver: LlmDriver = {
     const res = await fetch(url(p.baseUrl, "/v1/models?limit=100"), { headers: headers(p) });
     if (!res.ok) throw new LlmError(res.status, await readError(res));
     const data = (await res.json()) as { data?: { id: string }[] };
-    return (data.data ?? []).map((m) => m.id).sort();
+    return (data.data ?? []).map((m) => ({ id: m.id })).sort((a, b) => a.id.localeCompare(b.id));
   },
 };

@@ -18,6 +18,8 @@ export function getDb(filePath?: string): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);
+  // Versões antigas gravavam API keys em texto puro aqui; hoje a configuração de IA vive só na sessão.
+  db.prepare("DELETE FROM settings WHERE key = 'app'").run();
   return db;
 }
 

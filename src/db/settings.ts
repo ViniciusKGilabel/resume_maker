@@ -17,6 +17,11 @@ export const settingsRepo = {
       .run(key, JSON.stringify(value));
   },
 
+  /** Versões antigas gravavam providers e API keys em texto puro na chave "app". */
+  purgeLegacyApp(): void {
+    getDb().prepare("DELETE FROM settings WHERE key = 'app'").run();
+  },
+
   getAll(): Record<string, unknown> {
     const rows = getDb().prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[];
     return Object.fromEntries(rows.map((r) => [r.key, JSON.parse(r.value)]));

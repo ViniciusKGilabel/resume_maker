@@ -38,7 +38,7 @@ export const POST = handle(async (req: Request) => {
     return jsonError(400, "resumeId ou resume obrigatório");
   }
 
-  const settings = loadSettings();
+  const settings = loadSettings(req);
   const primary = resolveProvider(settings, settings.activeProviderId);
   const providers = [primary];
   if (body.compare) {

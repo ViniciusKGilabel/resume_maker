@@ -13,9 +13,10 @@ const s = StyleSheet.create({
 export function SingleColumn({ resume, language }: { resume: Resume; language: ResumeLanguage }) {
   const l = labels(language);
   const c = resume.contact;
+  const { mainBg, mainText } = resume.style;
   return (
     <Document title={c.name || "Resume"} author={c.name} subject={c.title} language={language}>
-      <Page size="A4" style={s.page}>
+      <Page size="A4" style={[s.page, { backgroundColor: mainBg, color: mainText }]}>
         <Text style={base.name}>{c.name}</Text>
         {c.title ? <Text style={base.title}>{c.title}</Text> : null}
         <Text style={s.contact}>{contactLines(resume).join("  |  ")}</Text>
