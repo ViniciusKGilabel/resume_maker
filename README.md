@@ -37,6 +37,10 @@ npm test        # testes
 
 Configure em **⚙ Configurações** na própria página. Cada provider tem base URL, chave e modelo. O botão ↻ lista os modelos disponíveis.
 
+A configuração de IA (providers, modelos e chaves) **não é gravada em disco**: fica na memória do servidor, ligada a um cookie de sessão `HttpOnly` (o JavaScript da página não consegue ler a chave). Ela some ao fechar o navegador, após 2h sem uso ou ao reiniciar o app, e aí é preciso configurar de novo. A chave nunca volta para o navegador; se você trocar a base URL de um provider, precisa colar a chave outra vez.
+
+Dica: crie chaves com limite de gasto no painel do provider. É a única defesa se o computador em si estiver comprometido.
+
 | Preset | Custo | Onde pegar a chave |
 |---|---|---|
 | OpenRouter | modelos `:free` gratuitos | openrouter.ai/keys |

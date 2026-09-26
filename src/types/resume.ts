@@ -41,6 +41,14 @@ export interface Language {
   level: string;
 }
 
+/** Cores customizáveis do PDF. sidebar* só se aplica ao template "Duas colunas". */
+export interface ResumeStyle {
+  sidebarBg: string;
+  sidebarText: string;
+  mainBg: string;
+  mainText: string;
+}
+
 export interface Resume {
   contact: Contact;
   summary: string;
@@ -49,6 +57,12 @@ export interface Resume {
   certifications: Certification[];
   skills: string[];
   languages: Language[];
+  style: ResumeStyle;
+}
+
+/** Reflete as cores atuais do tema (src/pdf/theme.ts) — não altera o visual de currículos existentes. */
+export function defaultResumeStyle(): ResumeStyle {
+  return { sidebarBg: "#f3f4f6", sidebarText: "#1f2937", mainBg: "#ffffff", mainText: "#1f2937" };
 }
 
 export function emptyContact(): Contact {
@@ -68,6 +82,7 @@ export function emptyResume(): Resume {
     certifications: [],
     skills: [],
     languages: [],
+    style: defaultResumeStyle(),
   };
 }
 
@@ -79,6 +94,10 @@ export function normalizeResume(input: unknown): Resume {
   const str = (v: unknown) => (typeof v === "string" ? v : "");
   const arr = (v: unknown) => (Array.isArray(v) ? v : []);
   const contact = (o.contact && typeof o.contact === "object" ? o.contact : {}) as Record<string, unknown>;
+  const style = (o.style && typeof o.style === "object" ? o.style : {}) as Record<string, unknown>;
+  const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+  const color = (v: unknown, fallback: string) => (typeof v === "string" && HEX.test(v.trim()) ? v.trim() : fallback);
+  const defaultStyle = defaultResumeStyle();
   return {
     contact: {
       name: str(contact.name),
@@ -116,5 +135,11 @@ export function normalizeResume(input: unknown): Resume {
       const x = (e ?? {}) as Record<string, unknown>;
       return { name: str(x.name), level: str(x.level) };
     }),
+    style: {
+      sidebarBg: color(style.sidebarBg, defaultStyle.sidebarBg),
+      sidebarText: color(style.sidebarText, defaultStyle.sidebarText),
+      mainBg: color(style.mainBg, defaultStyle.mainBg),
+      mainText: color(style.mainText, defaultStyle.mainText),
+    },
   };
 }

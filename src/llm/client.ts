@@ -1,7 +1,7 @@
 import { anthropicDriver } from "./drivers/anthropic";
 import { openaiCompatibleDriver } from "./drivers/openaiCompatible";
 import { extractJson } from "./json";
-import { LlmError, type ChatRequest, type LlmDriver, type ProviderConfig } from "./types";
+import { LlmError, type ChatRequest, type LlmDriver, type ModelInfo, type ProviderConfig } from "./types";
 
 export function driverFor(p: ProviderConfig): LlmDriver {
   return p.kind === "anthropic" ? anthropicDriver : openaiCompatibleDriver;
@@ -17,6 +17,6 @@ export async function chatJson(p: ProviderConfig, req: ChatRequest): Promise<unk
   }
 }
 
-export function listModels(p: ProviderConfig): Promise<string[]> {
+export function listModels(p: ProviderConfig): Promise<ModelInfo[]> {
   return driverFor(p).listModels(p);
 }

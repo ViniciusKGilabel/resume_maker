@@ -2,6 +2,7 @@ import { Text, View } from "@react-pdf/renderer";
 import type { Resume } from "@/src/types/resume";
 import { base } from "../theme";
 import { period, type Labels } from "../labels";
+import { measureTextWidth } from "../textMeasure";
 
 export function Bullets({ items }: { items: string[] }) {
   return (
@@ -74,4 +75,32 @@ export function Summary({ resume, l }: { resume: Resume; l: Labels }) {
 export function contactLines(resume: Resume): string[] {
   const c = resume.contact;
   return [c.email, c.phone, c.location, c.linkedin, c.github, c.website].map((s) => s.trim()).filter(Boolean);
+}
+
+const BREAK_AFTER = /(?<=[/.\-_@])/;
+
+/**
+ * Quebra manualmente (com \n) strings longas sem espaço, como URLs, para caberem
+ * em `maxWidth` (mesma unidade do PDF, ex. pt). O textkit do react-pdf não quebra
+ * "palavras" sem espaço e, se forçado via hyphenationCallback, insere um "-"
+ * visível — então a quebra é feita aqui, no texto, usando a largura real medida
+ * na fonte embutida (measureTextWidth) e aproveitando separadores que já existem
+ * nela (/ . - _ @), para acompanhar o tamanho de fato da coluna.
+ */
+export function wrapLongToken(value: string, maxWidth: number, fontSize: number, fontFamily = "Lato"): string {
+  if (measureTextWidth(value, fontSize, fontFamily) <= maxWidth) return value;
+  const segments = value.split(BREAK_AFTER);
+  const lines: string[] = [];
+  let current = "";
+  for (const seg of segments) {
+    const candidate = current + seg;
+    if (current && measureTextWidth(candidate, fontSize, fontFamily) > maxWidth) {
+      lines.push(current);
+      current = seg;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.join("\n");
 }
