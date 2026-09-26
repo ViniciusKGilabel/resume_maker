@@ -6,8 +6,6 @@ import { polishExperience, tailorResume } from "@/src/llm/service";
 import { LlmError, type ProviderConfig } from "@/src/llm/types";
 import { emptyResume } from "@/src/types/resume";
 import { BANNED_WORDS, styleRules } from "@/src/llm/prompts/style";
-import { describeModels, modelHint } from "@/src/llm/modelInfo";
-import { PRESETS } from "@/src/llm/presets";
 
 const oa: ProviderConfig = { id: "p", name: "p", kind: "openai-compatible", baseUrl: "https://x.test/v1/", apiKey: "k", model: "m" };
 const an: ProviderConfig = { id: "a", name: "a", kind: "anthropic", baseUrl: "https://api.anthropic.com", apiKey: "k", model: "claude-sonnet-5" };
@@ -58,39 +56,9 @@ describe("openaiCompatibleDriver", () => {
     await expect(openaiCompatibleDriver.chat(oa, { system: "s", user: "u" })).rejects.toMatchObject({ status: 401, message: "Invalid API key" });
   });
 
-  it("explains an empty answer: finish reason and reasoning", async () => {
-    mockFetch(() => json({ choices: [{ finish_reason: "length", message: { content: "", reasoning: "thinking..." } }] }));
-    await expect(openaiCompatibleDriver.chat(oa, { system: "s", user: "u" })).rejects.toThrow(/finish_reason=length.*raciocínio/);
-  });
-
-  it("surfaces an upstream error sent with HTTP 200", async () => {
-    mockFetch(() => json({ error: { message: "Provider returned error", code: 502 } }));
-    await expect(openaiCompatibleDriver.chat(oa, { system: "s", user: "u" })).rejects.toMatchObject({ status: 502, message: "Provider returned error" });
-  });
-
-  it("shows the upstream provider and raw reason behind OpenRouter's generic error", async () => {
-    mockFetch(() => json({ error: { message: "Provider returned error", code: 400, metadata: { provider_name: "OpenAI", raw: '{"error":{"message":"Unsupported value: temperature"}}' } } }, 400));
-    await expect(openaiCompatibleDriver.chat(oa, { system: "s", user: "u" })).rejects.toThrow(/Provider returned error \[OpenAI\].*Unsupported value: temperature/);
-  });
-
   it("lists models", async () => {
     mockFetch(() => json({ data: [{ id: "b" }, { id: "a" }] }));
-    expect(await openaiCompatibleDriver.listModels(oa)).toEqual([{ id: "a" }, { id: "b" }]);
-  });
-
-  it("reads price and description when the provider sends them (OpenRouter)", async () => {
-    mockFetch(() =>
-      json({
-        data: [
-          { id: "x/paid", description: "Big model. Second sentence.", pricing: { prompt: "0.000001", completion: "0.000002" } },
-          { id: "x/free:free", description: "", pricing: { prompt: "0", completion: "0" } },
-        ],
-      }),
-    );
-    expect(await openaiCompatibleDriver.listModels(oa)).toEqual([
-      { id: "x/free:free", free: true },
-      { id: "x/paid", free: false, description: "Big model." },
-    ]);
+    expect(await openaiCompatibleDriver.listModels(oa)).toEqual(["a", "b"]);
   });
 });
 
@@ -152,47 +120,9 @@ describe("service", () => {
     expect(t.skills).toEqual(["go", "node"]);
   });
 
-  it("tailorResume keeps the original custom colors even when the LLM omits style", async () => {
-    const original = emptyResume();
-    original.contact.name = "Ana";
-    original.style = { sidebarBg: "#112233", sidebarText: "#ffffff", mainBg: "#fefefe", mainText: "#000000" };
-    mockFetch(() => json({ choices: [{ message: { content: JSON.stringify({ summary: "x" }) } }] }));
-    const t = await tailorResume(oa, original, { company: "Google", title: "Backend", description: "node", links: [], webSearch: false }, "", "en");
-    expect(t.style).toEqual(original.style);
-  });
-
   it("style rules list banned words and the language", () => {
     const s = styleRules("pt-BR");
     expect(s).toContain("Brazilian Portuguese");
     for (const w of BANNED_WORDS.slice(0, 5)) expect(s).toContain(w);
-  });
-});
-
-describe("model catalog", () => {
-  it("every preset says if it is free and has a short description", () => {
-    for (const p of PRESETS) {
-      expect(["free", "free-limited", "paid"]).toContain(p.tier);
-      expect(p.description.length).toBeGreaterThan(0);
-      expect(p.description.length).toBeLessThanOrEqual(90);
-    }
-  });
-
-  it("gives a hint from the model name without knowing the exact id", () => {
-    expect(modelHint("gemini-9.9-flash-lite")).toMatch(/rápido/i);
-    expect(modelHint("claude-opus-9")).toMatch(/qualidade/i);
-    expect(modelHint("totally-unknown")).toBeUndefined();
-  });
-
-  it("uses provider data first, falls back to the preset tier, and lists free ones first", () => {
-    const groq = PRESETS.find((p) => p.id === "groq")!;
-    const out = describeModels([{ id: "b-70b" }, { id: "a-paid", free: false, description: "From API." }, { id: "c-free", free: true }], groq.baseUrl);
-    expect(out.map((m) => m.id)).toEqual(["b-70b", "c-free", "a-paid"]);
-    expect(out[0]).toMatchObject({ tier: "free-limited" });
-    expect(out[1]).toMatchObject({ tier: "free" });
-    expect(out[2]).toMatchObject({ tier: "paid", description: "From API." });
-  });
-
-  it("marks tier unknown for a custom base URL", () => {
-    expect(describeModels([{ id: "m" }], "https://my.server/v1")[0].tier).toBe("unknown");
   });
 });

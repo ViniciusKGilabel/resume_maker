@@ -19,7 +19,6 @@ export async function tailorResume(p: ProviderConfig, resume: Resume, job: JobIn
   tailored.education = resume.education.map((e) => ({ ...e }));
   tailored.certifications = resume.certifications.map((c) => ({ ...c }));
   tailored.languages = resume.languages.map((l) => ({ ...l }));
-  tailored.style = { ...resume.style };
   if (tailored.experiences.length !== resume.experiences.length) {
     // Se a LLM perdeu/duplicou experiências, volta pro original mantendo o resumo/skills.
     tailored.experiences = resume.experiences.map((e) => ({ ...e, bullets: [...e.bullets] }));

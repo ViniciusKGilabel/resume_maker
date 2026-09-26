@@ -1,12 +1,11 @@
 import type { ResumeRow, ResumeSummary } from "@/src/db/resumes";
 import type { TailoredRow } from "@/src/db/tailored";
-import type { DescribedModel } from "@/src/llm/modelInfo";
 import type { Preset } from "@/src/llm/presets";
 import type { JobInput, ProviderConfig } from "@/src/llm/types";
 import type { AppSettings } from "@/src/server/settings";
 import type { Experience, Resume, ResumeLanguage, TemplateId } from "@/src/types/resume";
 
-export type { ResumeRow, ResumeSummary, TailoredRow, AppSettings, Preset, ProviderConfig, JobInput, DescribedModel };
+export type { ResumeRow, ResumeSummary, TailoredRow, AppSettings, Preset, ProviderConfig, JobInput };
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
@@ -31,7 +30,7 @@ export const api = {
 
   getSettings: () => call<{ settings: AppSettings; presets: Preset[] }>("/api/settings"),
   saveSettings: (s: AppSettings) => call<{ settings: AppSettings }>("/api/settings", { method: "PUT", body: JSON.stringify(s) }).then((r) => r.settings),
-  listModels: (provider: ProviderConfig) => call<{ models: DescribedModel[] }>("/api/settings/models", { method: "POST", body: JSON.stringify({ provider }) }).then((r) => r.models),
+  listModels: (provider: ProviderConfig) => call<{ models: string[] }>("/api/settings/models", { method: "POST", body: JSON.stringify({ provider }) }).then((r) => r.models),
 
   polish: (experience: Experience, language: ResumeLanguage) =>
     call<{ bullets: string[]; provider: string }>("/api/llm/polish", { method: "POST", body: JSON.stringify({ experience, language }) }),

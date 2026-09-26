@@ -9,12 +9,12 @@ export const colors = {
 };
 
 export const base = StyleSheet.create({
-  page: { fontFamily: "Lato", fontSize: 10, color: colors.text, lineHeight: 1.35 },
-  name: { fontSize: 20, fontFamily: "Lato-Bold", color: colors.accent, marginBottom: 20 },
-  title: { fontSize: 11, color: colors.muted, marginTop: 0, marginBottom: 2 },
+  page: { fontFamily: "Helvetica", fontSize: 10, color: colors.text, lineHeight: 1.35 },
+  name: { fontSize: 20, fontFamily: "Helvetica-Bold", color: colors.accent },
+  title: { fontSize: 11, color: colors.muted, marginTop: 2 },
   h2: {
     fontSize: 11,
-    fontFamily: "Lato-Bold",
+    fontFamily: "Helvetica-Bold",
     color: colors.accent,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -24,7 +24,7 @@ export const base = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.rule,
   },
-  h3: { fontSize: 10.5, fontFamily: "Lato-Bold" },
+  h3: { fontSize: 10.5, fontFamily: "Helvetica-Bold" },
   meta: { fontSize: 9, color: colors.muted },
   p: { marginBottom: 2 },
   bulletRow: { flexDirection: "row", marginBottom: 1.5 },

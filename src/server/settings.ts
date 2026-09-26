@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { settingsRepo } from "@/src/db/settings";
+import { PRESETS } from "@/src/llm/presets";
 import type { ProviderConfig, ProviderKind } from "@/src/llm/types";
 import { HttpError } from "./errors";
-import { getSession, setSession } from "./session";
 
 export interface AppSettings {
   providers: ProviderConfig[];
@@ -10,19 +11,46 @@ export interface AppSettings {
   search: { tavilyKey: string; braveKey: string };
 }
 
+const KEY = "app";
 const MASK = "••••";
 
 function defaults(): AppSettings {
   return { providers: [], activeProviderId: null, compareProviderId: null, search: { tavilyKey: "", braveKey: "" } };
 }
 
-/** Configuração de IA vive só na sessão (memória do servidor), nunca em disco. */
-export function loadSettings(req: Request): AppSettings {
-  return getSession<AppSettings>(req) ?? defaults();
+/** Seed a partir do .env na primeira carga (LLM_KIND, LLM_BASE_URL, LLM_API_KEY, LLM_MODEL, TAVILY_API_KEY, BRAVE_API_KEY). */
+function seedFromEnv(s: AppSettings): AppSettings {
+  const env = process.env;
+  if (s.providers.length === 0 && (env.LLM_API_KEY || env.LLM_BASE_URL)) {
+    const kind: ProviderKind = env.LLM_KIND === "anthropic" ? "anthropic" : "openai-compatible";
+    const preset = PRESETS.find((p) => p.kind === kind && (!env.LLM_BASE_URL || p.baseUrl === env.LLM_BASE_URL));
+    const p: ProviderConfig = {
+      id: randomUUID(),
+      name: env.LLM_NAME || preset?.name || "Provider (.env)",
+      kind,
+      baseUrl: env.LLM_BASE_URL || preset?.baseUrl || PRESETS[0].baseUrl,
+      apiKey: env.LLM_API_KEY || "",
+      model: env.LLM_MODEL || preset?.model || PRESETS[0].model,
+    };
+    s.providers.push(p);
+    s.activeProviderId = p.id;
+  }
+  if (!s.search.tavilyKey && env.TAVILY_API_KEY) s.search.tavilyKey = env.TAVILY_API_KEY;
+  if (!s.search.braveKey && env.BRAVE_API_KEY) s.search.braveKey = env.BRAVE_API_KEY;
+  return s;
 }
 
-export function saveSettings(req: Request, s: AppSettings): { settings: AppSettings; setCookie?: string } {
-  return { settings: s, ...setSession(req, s) };
+export function loadSettings(): AppSettings {
+  const stored = settingsRepo.get<AppSettings | null>(KEY, null);
+  if (stored) return { ...defaults(), ...stored, search: { ...defaults().search, ...stored.search } };
+  const seeded = seedFromEnv(defaults());
+  settingsRepo.set(KEY, seeded);
+  return seeded;
+}
+
+export function saveSettings(s: AppSettings): AppSettings {
+  settingsRepo.set(KEY, s);
+  return s;
 }
 
 export function maskKey(k: string): string {
@@ -48,16 +76,13 @@ export function mergeIncoming(current: AppSettings, incoming: Partial<AppSetting
   const prevById = new Map(current.providers.map((p) => [p.id, p]));
   const providers = (incoming.providers ?? current.providers).map((p) => {
     const prev = prevById.get(p.id);
-    const baseUrl = String(p.baseUrl ?? "").trim();
-    // Chave mascarada só é reaproveitada no mesmo endereço: trocar a URL não pode mandar a chave salva para outro servidor.
-    const keepPrev = prev && prev.baseUrl === baseUrl ? prev.apiKey : "";
-    const apiKey = typeof p.apiKey === "string" && isMasked(p.apiKey) ? keepPrev : (p.apiKey ?? "");
+    const apiKey = typeof p.apiKey === "string" && isMasked(p.apiKey) ? (prev?.apiKey ?? "") : (p.apiKey ?? "");
     const kind: ProviderKind = p.kind === "anthropic" ? "anthropic" : "openai-compatible";
     return {
       id: p.id || randomUUID(),
       name: String(p.name ?? "").trim() || "Provider",
       kind,
-      baseUrl,
+      baseUrl: String(p.baseUrl ?? "").trim(),
       apiKey,
       model: String(p.model ?? "").trim(),
     };
@@ -78,7 +103,7 @@ export function mergeIncoming(current: AppSettings, incoming: Partial<AppSetting
 
 export function resolveProvider(s: AppSettings, id: string | null | undefined): ProviderConfig {
   const p = s.providers.find((x) => x.id === id);
-  if (!p) throw new HttpError(400, "Nenhum provider de LLM configurado nesta sessão. Abra ⚙ Configurações e adicione um.");
+  if (!p) throw new HttpError(400, "Nenhum provider de LLM configurado. Abra Configurações e adicione um.");
   if (!p.baseUrl || !p.model) throw new HttpError(400, `Provider "${p.name}" sem URL ou modelo.`);
   return p;
 }

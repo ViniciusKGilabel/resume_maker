@@ -1,7 +1,6 @@
 "use client";
 import type { Resume, ResumeLanguage } from "@/src/types/resume";
 import { Section, Textarea } from "../ui";
-import { AppearanceForm } from "./AppearanceForm";
 import { ContactForm } from "./ContactForm";
 import { ExperiencesForm } from "./ExperiencesForm";
 import { ImportPdf } from "./ImportPdf";
@@ -21,9 +20,6 @@ export function Editor({ resume, language, onChange }: { resume: Resume; languag
       <ImportPdf onImported={onImported} />
       <Section title="Contato">
         <ContactForm value={resume.contact} onChange={(c) => set("contact", c)} />
-      </Section>
-      <Section title="Aparência" defaultOpen={false}>
-        <AppearanceForm value={resume.style} onChange={(v) => set("style", v)} />
       </Section>
       <Section title="Resumo">
         <Textarea value={resume.summary} placeholder="2 a 4 frases sobre você. A personalização por vaga reescreve isso." onChange={(e) => set("summary", e.target.value)} />
