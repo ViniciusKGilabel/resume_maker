@@ -54,3 +54,48 @@ describe("renderResumePdf", () => {
     expect(buf.length).toBeGreaterThan(500);
   });
 });
+
+/** Posição (x) e largura de cada trecho de texto da página 1, em pontos. */
+async function textBoxes(buf: Buffer): Promise<{ str: string; x: number; right: number; y: number }[]> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(buf) }).promise;
+  const content = await (await doc.getPage(1)).getTextContent();
+  return content.items
+    .filter((i): i is typeof i & { str: string; transform: number[]; width: number } => "str" in i && i.str.trim() !== "")
+    .map((i) => ({ str: i.str, x: i.transform[4], right: i.transform[4] + i.width, y: i.transform[5] }));
+}
+
+describe("two-column sidebar", () => {
+  const SIDEBAR_CONTENT_RIGHT = 168 - 16; // largura da lateral menos o padding
+
+  it("wraps long links (LinkedIn/GitHub) inside the sidebar and keeps them readable", async () => {
+    const r = sample();
+    r.contact.linkedin = "https://www.linkedin.com/in/ana-souza-desenvolvedora-backend-123456";
+    r.contact.github = "https://github.com/ana-souza-desenvolvedora";
+    const buf = await renderResumePdf(r, { template: "two-column", language: "pt-BR" });
+    const side = (await textBoxes(buf)).filter((b) => b.x < 168);
+    const overflow = side.filter((b) => b.right > SIDEBAR_CONTENT_RIGHT + 0.5);
+    expect(overflow.map((b) => b.str)).toEqual([]);
+    // Nada de hífen inventado na quebra, e o link inteiro continua extraível.
+    const text = (await extractPdfText(buf)).replace(/\s+/g, "");
+    expect(text).toContain("linkedin.com/in/ana-souza-desenvolvedora-backend-123456");
+    expect(text).toContain("github.com/ana-souza-desenvolvedora");
+  });
+
+  it("wraps a link segment with no separators that is wider than the column", async () => {
+    const r = sample();
+    r.contact.linkedin = "linkedin.com/in/anasouzadesenvolvedorabackendsenior2024";
+    const buf = await renderResumePdf(r, { template: "two-column", language: "pt-BR" });
+    const side = (await textBoxes(buf)).filter((b) => b.x < 168);
+    expect(side.filter((b) => b.right > SIDEBAR_CONTENT_RIGHT + 0.5).map((b) => b.str)).toEqual([]);
+    expect((await extractPdfText(buf)).replace(/\s+/g, "")).toContain("linkedin.com/in/anasouzadesenvolvedorabackendsenior2024");
+  });
+
+  it("leaves space between the name and the professional title", async () => {
+    const boxes = await textBoxes(await renderResumePdf(sample(), { template: "two-column", language: "pt-BR" }));
+    const name = boxes.find((b) => b.str.includes("Ana Souza"))!;
+    const title = boxes.find((b) => b.str.includes("Desenvolvedora Backend"))!;
+    // Distância entre as linhas de base; antes da correção era ~7pt (título colado no nome).
+    expect(name.y - title.y).toBeGreaterThanOrEqual(12);
+  });
+});

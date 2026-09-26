@@ -89,7 +89,21 @@ const BREAK_AFTER = /(?<=[/.\-_@])/;
  */
 export function wrapLongToken(value: string, maxWidth: number, fontSize: number, fontFamily = "Lato"): string {
   if (measureTextWidth(value, fontSize, fontFamily) <= maxWidth) return value;
-  const segments = value.split(BREAK_AFTER);
+  // Trecho sem separador que sozinho não cabe (ex.: usuário longo): corta por caractere.
+  const segments = value.split(BREAK_AFTER).flatMap((seg) => {
+    if (measureTextWidth(seg, fontSize, fontFamily) <= maxWidth) return [seg];
+    const pieces: string[] = [];
+    let piece = "";
+    for (const ch of seg) {
+      if (piece && measureTextWidth(piece + ch, fontSize, fontFamily) > maxWidth) {
+        pieces.push(piece);
+        piece = ch;
+      } else {
+        piece += ch;
+      }
+    }
+    return piece ? [...pieces, piece] : pieces;
+  });
   const lines: string[] = [];
   let current = "";
   for (const seg of segments) {
